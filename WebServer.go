@@ -1,6 +1,7 @@
 package main
 
 import (
+	"AssistantServer/DisplyPck"
 	"Common"
 	"flag"
 	"fmt"
@@ -38,6 +39,13 @@ func main() {
 	}
 	defer Common.CloseLogger()
 
+	//获取网络配置
+	HttpConf, err := conf.GetConf("HTTP_CONF")
+	if err != nil {
+		Common.FATAL("get configer faile. Error:", err)
+	}
+
 	//启动Web Server
+	http.HandleFunc(HttpConf["ListenHos"], DisplyPck.DisplyIndex)
 
 }
