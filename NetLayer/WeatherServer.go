@@ -8,12 +8,35 @@ import (
 	"time"
 )
 
+//请求类型
+type ASK_TYPE int32
+
+const (
+	QueryGetWeather      ASK_TYPE = iota //获取天气信息
+	QueryGetDrivingLimit                 //获取限行
+)
+
+//协议类型
+type CMD_TYEP int16
+
+const (
+	CmdAlive CMD_TYEP = iota
+	CmdLogin
+)
+
+//消息协议
 type CmdMsg struct {
 	Msg string `json:"msg"`
 }
 
+//登入请求协议
+type CmdLoginRQ struct {
+	Mtype ASK_TYPE `json:"type"`
+}
+
+//协议头
 type CmdInfo struct {
-	Cmd        int16       `json:"cmd"`
+	Cmd        CMD_TYEP    `json:"cmd"`
 	Version    string      `json:"version"`
 	HandleData interface{} `json:"handle_data"`
 }
@@ -21,7 +44,7 @@ type CmdInfo struct {
 type WeatherServer struct {
 	mWSconn     *websocket.Conn
 	mLastLive   time.Time //最后心跳时间
-	mFuncHandle map[int16]func(interface{}) error
+	mFuncHandle map[CMD_TYEP]func(interface{}) error
 }
 
 func (this *WeatherServer) Init() {
@@ -69,7 +92,7 @@ func (this *WeatherServer) SendMsg(cmd CmdInfo) error {
 	return nil
 }
 
-func (this *WeatherServer) cmdHandle(cmd int16, hd interface{}) error {
+func (this *WeatherServer) cmdHandle(cmd CMD_TYEP, hd interface{}) error {
 	f := this.mFuncHandle[cmd]
 	if f == nil {
 		return errors.New("Not the handle.")
@@ -77,9 +100,15 @@ func (this *WeatherServer) cmdHandle(cmd int16, hd interface{}) error {
 	return f(hd)
 }
 
+//心跳处理
 func (this *WeatherServer) liveHandle(hd interface{}) error {
 	Common.DEBUG("This is live tick.")
 	this.mLastLive = time.Now()
 
 	return nil
+}
+
+//登入处理
+func (this *WeatherServer) Login(hd interface{}) error {
+
 }
