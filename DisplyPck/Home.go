@@ -1,7 +1,6 @@
 package DisplyPck
 
 import (
-	"Common"
 	"html/template"
 	"net/http"
 )
@@ -13,16 +12,7 @@ type IndexInfo struct {
 }
 
 func DisplyIndex(w http.ResponseWriter, req *http.Request) {
-	IndexTemp := template.New("Index")
-	IndexTemp, err := IndexTemp.ParseFiles("./HTMLtemplate/IndexTemplate.html")
-	if err != nil {
-		Common.ERROR("Parse File Error:", err)
-		return
-	}
-
-	var index IndexInfo
-	index.Title = "Test Page"
-	index.Date = "2018-12-5"
-	index.Weather = "晴"
-	IndexTemp.Execute(w, index)
+	tmpl := template.Must(template.ParseFiles("./DisplyPck/HTMLtemplate/IndexTemplate.html"))
+	indexValue := IndexInfo{Title: "Test Page", Date: "2018-12-5", Weather: "Fine"}
+	tmpl.Execute(w, indexValue)
 }

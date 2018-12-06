@@ -9,12 +9,12 @@ import (
 	"strconv"
 )
 
-var ConfFile = flag.String("f", "./WevServer.conf", "configer file")
+var ConfFile = flag.String("f", "./WebServer.conf", "configer file")
 
 func main() {
 	//解析配置
 	conf := &Common.Configer{}
-	if err := conf.Init(ConfFile); err != nil {
+	if err := conf.Init(*ConfFile); err != nil {
 		fmt.Println("Configer initialization Error:", err)
 		return
 	}
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	//初始化日志
-	if err := Common.SetLogger(logConfs["Path"], logConfs["AppName"], DebugLevel); err != nil {
+	if err := Common.SetLogger(logConfs["Path"], logConfs["AppName"], Common.LOG_LEVE(DebugLevel)); err != nil {
 		fmt.Println("Set logger Error:", err)
 		return
 	}
@@ -44,8 +44,14 @@ func main() {
 	if err != nil {
 		Common.FATAL("get configer faile. Error:", err)
 	}
+	if len(HttpConf) <= 0 {
+		Common.WARN("Not Http configer.")
+	}
+	Common.DEBUG("HTTP_CONF:", HttpConf)
 
 	//启动Web Server
-	http.HandleFunc(HttpConf["ListenHos"], DisplyPck.DisplyIndex)
+	http.HandleFunc("/", DisplyPck.DisplyIndex)
+	Common.DEBUG("Listening:", HttpConf["ListenHos"])
+	Common.FATAL(http.ListenAndServe(HttpConf["ListenHos"], nil))
 
 }
