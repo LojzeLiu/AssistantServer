@@ -3,26 +3,36 @@ package NetLayer
 import (
 	"Common"
 	"golang.org/x/net/websocket"
+	"sync"
 	"time"
 )
 
-var gClients []*WeatherServer
+var gMutex sync.Mutex
+var gClientID int64 = 80000
+var gClients map[int64]*WeatherServer = make(map[int64]*WeatherServer)
 
 func WSAccept(ws *websocket.Conn) {
 	Common.DEBUG("On Accept, Addr:", ws.RemoteAddr())
 	CurrClient := &WeatherServer{}
 	CurrClient.Init()
 	go timedWork()
-	gClients = append(gClients, CurrClient)
+	gMutex.Lock()
+	gClientID++
+	CurrClientID := gClientID
+	gClients[CurrClientID] = &CurrClient
+	gMutex.Unlock()
 
 	CurrClient.Listener(ws)
+	gMutex.Lock()
+	delete(gClients, CurrClientID)
+	gMutex.Unlock()
 	Common.DEBUG("Deal end...")
 }
 
 func SendAllMsg(msg CmdInfo) {
-	for num, curr := range gClients[0:] {
+	for id, Client := range gClients {
 		if err := curr.SendMsg(msg); err != nil {
-			Common.DEBUG("Send msg failed, Reason:", err, "; num:", num)
+			Common.DEBUG("Send msg failed, Reason:", err, "; ID:", id)
 			continue
 		}
 	}
