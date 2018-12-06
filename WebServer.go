@@ -50,6 +50,7 @@ func main() {
 	Common.DEBUG("HTTP_CONF:", HttpConf)
 
 	//启动Web Server
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.HandleFunc("/", DisplyPck.DisplyIndex)
 	Common.DEBUG("Listening:", HttpConf["ListenHos"])
 	Common.FATAL(http.ListenAndServe(HttpConf["ListenHos"], nil))
