@@ -2,9 +2,11 @@ package main
 
 import (
 	"AssistantServer/DisplyPck"
+	"AssistantServer/NetLayer"
 	"Common"
 	"flag"
 	"fmt"
+	"golang.org/x/net/websocket"
 	"net/http"
 	"strconv"
 )
@@ -47,12 +49,20 @@ func main() {
 	if len(HttpConf) <= 0 {
 		Common.WARN("Not Http configer.")
 	}
-	Common.DEBUG("HTTP_CONF:", HttpConf)
+
+	//配置静态文件
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	//配置首页
+	http.HandleFunc("/", DisplyPck.DisplyIndex)
+
+	//配置Websoekct
+	http.Handle("/ws_accept/", websocket.Handler(NetLayer.WSAccept))
 
 	//启动Web Server
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	http.HandleFunc("/", DisplyPck.DisplyIndex)
-	Common.DEBUG("Listening:", HttpConf["ListenHos"])
-	Common.FATAL(http.ListenAndServe(HttpConf["ListenHos"], nil))
+	if err := http.ListenAndServe(HttpConf["ListenHos"], nil); err != nil {
+		Common.ERROR("Error:", err)
+		return
+	}
 
 }
