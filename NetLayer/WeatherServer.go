@@ -9,13 +9,13 @@ import (
 )
 
 type CmdMsg struct {
-	msg string
+	Msg string `json:"msg"`
 }
 
 type CmdInfo struct {
-	Cmd        int16       `json:cmd`
-	Version    string      `json:version`
-	HandleData interface{} `json:handle_data`
+	Cmd        int16       `json:"cmd"`
+	Version    string      `json:"version"`
+	HandleData interface{} `json:"handle_data"`
 }
 
 type WeatherServer struct {
@@ -30,6 +30,7 @@ func (this *WeatherServer) Init() {
 }
 
 func (this *WeatherServer) Listener(ws *websocket.Conn) {
+	this.mWSconn = ws
 	for {
 		var RecvBuff string
 		if err := websocket.Message.Receive(ws, &RecvBuff); err != nil {
@@ -50,19 +51,19 @@ func (this *WeatherServer) Listener(ws *websocket.Conn) {
 			continue
 		}
 
-		this.mWSconn = ws
 	}
 }
 
 func (this *WeatherServer) SendMsg(cmd CmdInfo) error {
 	if this.mWSconn == nil {
-		return nil
+		return errors.New("Not initialization WS conn. ")
 	}
 	msg, err := json.Marshal(cmd)
 	if err != nil {
 		return err
 	}
-	if err := websocket.Message.Send(this.mWSconn, msg); err != nil {
+	sendData := string(msg)
+	if err := websocket.Message.Send(this.mWSconn, sendData); err != nil {
 		return err
 	}
 	return nil

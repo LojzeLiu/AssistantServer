@@ -6,15 +6,17 @@ function ConnectToAssistantServer()
 
         ws.onopen = function(evt){
             ws.send("Hello WebSockets!");
-            alert("Sending...");
+            console.log("Sending...");
         };
 
         ws.onmessage = function(evt){
-            alert("Recived Message:"+evt.data);
+            var msg = JSON.parse(evt.data);
+
+            console.log(msg);
         };
 
         ws.onclose = function(evt){
-            alert("Closed.");
+            console.log("Closed.");
         };
     }
     else

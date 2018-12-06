@@ -2,16 +2,15 @@ package NetLayer
 
 import (
 	"Common"
-	"fmt"
 	"golang.org/x/net/websocket"
 	"time"
 )
 
-var gClients []WeatherServer
+var gClients []*WeatherServer
 
 func WSAccept(ws *websocket.Conn) {
 	Common.DEBUG("On Accept, Addr:", ws.RemoteAddr())
-	CurrClient := WeatherServer{}
+	CurrClient := &WeatherServer{}
 	CurrClient.Init()
 	go timedWork()
 	gClients = append(gClients, CurrClient)
@@ -21,10 +20,9 @@ func WSAccept(ws *websocket.Conn) {
 }
 
 func SendAllMsg(msg CmdInfo) {
-	for _, curr := range gClients[0:] {
-		fmt.Println("Send a client msg.")
+	for num, curr := range gClients[0:] {
 		if err := curr.SendMsg(msg); err != nil {
-			Common.DEBUG("Send msg failed, Reason:", err)
+			Common.DEBUG("Send msg failed, Reason:", err, "; num:", num)
 			continue
 		}
 	}
@@ -34,12 +32,11 @@ func timedWork() {
 	for {
 		var msg CmdInfo
 		var data CmdMsg
-		data.msg = "Hello this is golang websocket server."
+		data.Msg = "Hello this is golang websocket server."
 		msg.Cmd = 0
 		msg.Version = "1.0.0.0"
 		msg.HandleData = data
 		SendAllMsg(msg)
-		fmt.Println("Send all client msg.")
 
 		time.Sleep(time.Second * 10)
 	}
