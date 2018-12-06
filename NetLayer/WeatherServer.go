@@ -29,11 +29,6 @@ type CmdMsg struct {
 	Msg string `json:"msg"`
 }
 
-//登入请求协议
-type CmdLoginRQ struct {
-	Mtype ASK_TYPE `json:"type"`
-}
-
 //协议头
 type CmdInfo struct {
 	Cmd        CMD_TYEP    `json:"cmd"`
@@ -106,9 +101,4 @@ func (this *WeatherServer) liveHandle(hd interface{}) error {
 	this.mLastLive = time.Now()
 
 	return nil
-}
-
-//登入处理
-func (this *WeatherServer) Login(hd interface{}) error {
-
 }
