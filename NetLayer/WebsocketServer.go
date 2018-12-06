@@ -5,21 +5,13 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+var gClients = make([]*WeatherServer)
+
 func WSAccept(ws *websocket.Conn) {
 	Common.DEBUG("On Accept ")
-	for {
-		var reply string
-		if err := websocket.Message.Receive(ws, &reply); err != nil {
-			Common.ERROR("Error:", err)
-			break
-		}
-		Common.DEBUG("Recv:", reply)
-		if err := websocket.Message.Send(ws, reply); err != nil {
-			Common.ERROR("Error:", err)
-			break
-		}
-	}
-}
+	CurrClient := &WeatherServer{}
+	go CurrClient.Listener(ws)
 
-type WeatherServer struct {
+	gClients = append(gClients, CurrClient)
+	Common.DEBUG("Deal end...")
 }
