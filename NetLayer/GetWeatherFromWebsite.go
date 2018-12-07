@@ -2,7 +2,13 @@ package NetLayer
 
 import (
 	"Common"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -96,8 +102,9 @@ type WeatherInfoBuffer struct {
 }
 
 type WeatherCrawler struct {
-	mCrawlerConf Common.Configer    //配置信息
-	mWeatherBuff *WeatherInfoBuffer //天气情况缓存
+	mCrawlerConf   Common.Configer    //配置信息
+	mBufferTimeOut time.Duration      //缓存更新间隔
+	mWeatherBuff   *WeatherInfoBuffer //天气情况缓存
 }
 
 //初始化
@@ -110,6 +117,14 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 		return errors.New("Crawler configur not exit.")
 	}
 
+	gap := strconv.Atoi(this.mCrawlerConf["BufferTimeout"])
+	if gap <= 0 {
+		this.mBufferTimeOut = time.Duration(gap)
+	} else {
+		this.mBufferTimeOut = Common.Hour * 2
+	}
+	Common.DEBUG("Buffer timeout:", gap)
+
 	return nil
 }
 
@@ -117,9 +132,9 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, TodayAlertWeather, error) {
 	//检测缓存
 	currTime := time.Now()
-	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= Common.Hour*2 {
+	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= this.mBufferTimeOut {
 		//超时更新缓存
-		if err := this.UpdateWeatherBuff(); err != nil {
+		if err := this.UpdateWeatherBuff(0); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -129,6 +144,59 @@ func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, TodayAlertWeathe
 }
 
 //更新天气信息
-func (this *WeatherCrawler) UpdateWeatherBuff() error {
+func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
+	//获取天气实况
+	//获取空气质量
+	//获取限行
+	//获取预警
+	//更新天气简要
+}
 
+//更新天气实况
+func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+	//设置请求参数
+	var query string
+	fmt.Fprintf(query, "cityId=%v&token=%v", cityId, this.mCrawlerConf["token"])
+	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], query)
+	if err != nil {
+		return err
+	}
+
+	//设置请求头
+	APPCODE := "APPCODE"
+	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("Authorization", APPCODE)
+
+	//发起请求
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var TodayCondition TodayWeather
+	var RetData AlicityWeather
+	RetData.Data.(TodayWeather)
+	//分解返回信息
+	switch resp.StatusCode {
+	case http.StatusOK:
+		//请求成功 200 OK
+		//解析Json
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(body, &RetData); err != nil {
+			return err
+		}
+		//更新缓存
+		this.mWeatherBuff.mTodayWeather = TodayCondition
+	default:
+		//失败
+		errMsg := fmt.Sprint("HTTP Post request failed, status code:", resp.StatusCode, "; Status:", resp.Status)
+		return errors.New(errMsg)
+	}
+	return nil
 }
