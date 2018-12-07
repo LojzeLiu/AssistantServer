@@ -1,18 +1,19 @@
 package DisplyPck
 
 import (
+	"AssistantServer/NetLayer"
 	"html/template"
 	"net/http"
 )
 
-type IndexInfo struct {
-	Title   string
-	Date    string
-	Weather string
-}
-
 func DisplyIndex(w http.ResponseWriter, req *http.Request) {
+	TodayWeather, TodayEarly, err := gCrawler.GetTodayBrief(101010100)
+	if err != nil {
+		errTmp := template.Must(template.ParseFiles("./tmpl"))
+		errData := ErrorInfo{Msg: err}
+		errTmp.Execute(w, errData)
+		return
+	}
 	tmpl := template.Must(template.ParseFiles("./tmpl/IndexTemplate.html"))
-	indexValue := IndexInfo{Title: "Test Page", Date: "2018-12-5", Weather: "Fine"}
-	tmpl.Execute(w, indexValue)
+	tmpl.Execute(w, TodayWeather)
 }
