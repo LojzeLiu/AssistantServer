@@ -4,6 +4,8 @@ import (
 	//"fmt"
 	//"github.com/gocolly/colly"
 	"Common"
+	"errors"
+	"time"
 )
 
 //城市信息
@@ -61,8 +63,9 @@ type AlicityWeather struct {
 	RC   WeatherRC   `json:"rc"`
 }
 
-//向客户端返回今天天气概述
+//向客户端返回今天天气简要
 type TodayWeatherBrief struct {
+	Date      string `json:"date"`      //日期
 	Humidity  string `json:"humidity"`  //湿度
 	Temp      string `json:"temp"`      //温度
 	WindLevel string `json:"windLevel"` //风级
@@ -70,10 +73,20 @@ type TodayWeatherBrief struct {
 	Tips      string `json:"tips"`      //提示
 	Uvi       string `json:"uvi"`       //紫外线强度
 	Value     string `json:"value"`     //空气质量指数值
+	Limit     string `json:"limit"`     //汽车限行
+}
+
+//天气信息缓存
+type WeatherInfoBuffer struct {
+	mUpdateTime   time.Time         //更新时间
+	mTodayBrief   TodayWeatherBrief //今日天气简要
+	mTodayAQI     TodayAQI          //今日空气质量
+	mTodayWeather TodayWeather      //今日天气实况
 }
 
 type WeatherCrawler struct {
-	mCrawlerConf Common.Configer
+	mCrawlerConf Common.Configer    //配置信息
+	mWeatherBuff *WeatherInfoBuffer //天气情况缓存
 }
 
 //初始化
@@ -82,10 +95,18 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 		return err
 	}
 
+	if len(this.mCrawlerConf) <= 0 {
+		return errors.New("Crawler configur not exit.")
+	}
+
 	return nil
 }
 
-//获取天气信息
-func (this *WeatherCrawler) GetTodayWeather() (TodayWeather, error) {
-
+//获取今日天气简要
+func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, error) {
+	//检测缓存
+	currTime := time.Now()
+	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= Common.Hour*2 {
+		//超时更新缓存
+	}
 }
