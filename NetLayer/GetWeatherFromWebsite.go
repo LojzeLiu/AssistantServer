@@ -66,6 +66,12 @@ type TodayAQI struct {
 	Value    string `json:"value"`    //空气质量指数值
 }
 
+//限行信息
+type DayLimit struct {
+	Date   string `json:"date"`
+	Prompt string `json:"Prompt"`
+}
+
 type WeatherRC struct {
 	C int    `json:"c"`
 	P string `json:"p"`
@@ -94,11 +100,12 @@ type TodayWeatherBrief struct {
 
 //天气信息缓存
 type WeatherInfoBuffer struct {
-	mUpdateTime   time.Time          //更新时间
-	mTodayBrief   TodayWeatherBrief  //今日天气简要
-	mTodayAQI     TodayAQI           //今日空气质量
-	mTodayWeather TodayWeather       //今日天气实况
-	mTodayAlert   *TodayAlertWeather //今日预警
+	mUpdateTime   time.Time           //更新时间
+	mTodayBrief   TodayWeatherBrief   //今日天气简要
+	mTodayAQI     TodayAQI            //今日空气质量
+	mTodayWeather TodayWeather        //今日天气实况
+	mTodayAlert   *TodayAlertWeather  //今日预警
+	mLimitCar     map[string]DayLimit //限行信息
 }
 
 type WeatherCrawler struct {
@@ -146,10 +153,25 @@ func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, TodayAlertWeathe
 //更新天气信息
 func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	//获取天气实况
+	if err := this.updateConditionWeather(cityId); err != nil {
+		return err
+	}
 	//获取空气质量
 	//获取限行
 	//获取预警
 	//更新天气简要
+	Today := fmt.Sprint(time.Now().Year(), "-", time.Now().Month(), "-", time.Now().Day())
+	this.mWeatherBuff.mTodayBrief.Date = this.mWeatherBuff.mTodayWeather.Updatetime
+	this.mWeatherBuff.mTodayBrief.Humidity = this.mWeatherBuff.mTodayWeather.Humidity
+	this.mWeatherBuff.mTodayBrief.Temp = this.mWeatherBuff.mTodayWeather.Temp
+	this.mWeatherBuff.mTodayBrief.WindLevel = this.mWeatherBuff.mTodayWeather.WindLevel
+	this.mWeatherBuff.mTodayBrief.Icon = this.mWeatherBuff.mTodayWeather.Icon
+	this.mWeatherBuff.mTodayBrief.Tips = this.mWeatherBuff.mTodayWeather.Tips
+	this.mWeatherBuff.mTodayBrief.Uvi = this.mWeatherBuff.mTodayWeather.Uvi
+	this.mWeatherBuff.mTodayBrief.Value = this.mWeatherBuff.mTodayAQI.Value
+	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today]
+
+	return nil
 }
 
 //更新天气实况
@@ -198,5 +220,6 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 		errMsg := fmt.Sprint("HTTP Post request failed, status code:", resp.StatusCode, "; Status:", resp.Status)
 		return errors.New(errMsg)
 	}
+
 	return nil
 }
