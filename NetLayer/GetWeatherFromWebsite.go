@@ -1,8 +1,6 @@
 package NetLayer
 
 import (
-	//"fmt"
-	//"github.com/gocolly/colly"
 	"Common"
 	"errors"
 	"time"
@@ -90,10 +88,11 @@ type TodayWeatherBrief struct {
 
 //天气信息缓存
 type WeatherInfoBuffer struct {
-	mUpdateTime   time.Time         //更新时间
-	mTodayBrief   TodayWeatherBrief //今日天气简要
-	mTodayAQI     TodayAQI          //今日空气质量
-	mTodayWeather TodayWeather      //今日天气实况
+	mUpdateTime   time.Time          //更新时间
+	mTodayBrief   TodayWeatherBrief  //今日天气简要
+	mTodayAQI     TodayAQI           //今日空气质量
+	mTodayWeather TodayWeather       //今日天气实况
+	mTodayAlert   *TodayAlertWeather //今日预警
 }
 
 type WeatherCrawler struct {
@@ -115,12 +114,21 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 }
 
 //获取今日天气简要
-func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, error) {
+func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, TodayAlertWeather, error) {
 	//检测缓存
 	currTime := time.Now()
 	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= Common.Hour*2 {
 		//超时更新缓存
+		if err := this.UpdateWeatherBuff(); err != nil {
+			return nil, nil, err
+		}
 	}
+
+	//返回信息
+	return this.mWeatherBuff.mTodayBrief, this.mWeatherBuff.mTodayAlert, nil
 }
 
-//获取天气信息
+//更新天气信息
+func (this *WeatherCrawler) UpdateWeatherBuff() error {
+
+}
