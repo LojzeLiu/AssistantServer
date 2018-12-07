@@ -14,7 +14,7 @@ type CityInfo struct {
 	Pname    string `json:"pname"`    //城市名称
 }
 
-//今日天气
+//天气实况
 type TodayWeather struct {
 	City        CityInfo `json:"city"`        //城市信息
 	Condition   string   `json:"condition"`   //天气阴晴
@@ -53,12 +53,23 @@ type WeatherRC struct {
 	P string `json:"p"`
 }
 
-//天气返回协议
+//天气API返回协议
 type AlicityWeather struct {
 	Code int         `json:"code"` //执行状态码
 	Data interface{} `json:"data"` //天气数据
 	Msg  string      `json:"msg"`  //执行状态消息
 	RC   WeatherRC   `json:"rc"`
+}
+
+//向客户端返回今天天气概述
+type TodayWeatherBrief struct {
+	Humidity  string `json:"humidity"`  //湿度
+	Temp      string `json:"temp"`      //温度
+	WindLevel string `json:"windLevel"` //风级
+	Icon      string `json:"icon"`      //图标
+	Tips      string `json:"tips"`      //提示
+	Uvi       string `json:"uvi"`       //紫外线强度
+	Value     string `json:"value"`     //空气质量指数值
 }
 
 type WeatherCrawler struct {
