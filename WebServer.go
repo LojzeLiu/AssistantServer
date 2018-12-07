@@ -51,10 +51,10 @@ func main() {
 	//配置首页
 	http.HandleFunc("/", DisplyPck.DisplyIndex)
 
-	//配置Websoekct
+	//配置 Websoekct
 	http.Handle("/ws_accept/", websocket.Handler(NetLayer.WSAccept))
 
-	//启动Web Server
+	//启动 Web Server
 	if err := http.ListenAndServe(HttpConf["ListenHos"], nil); err != nil {
 		Common.ERROR("Error:", err)
 		return
