@@ -36,13 +36,19 @@ func main() {
 	}
 	defer Common.CloseLogger()
 
+	//初始化显式数据
+	var disply DisplyData
+	if err := disply.Init(conf); err != nil {
+		Common.FATAL("Disply Data Initializtion failed. Reason:", err)
+	}
+
 	//获取网络配置
 	HttpConf, err := conf.GetConf("HTTP_CONF")
 	if err != nil {
 		Common.FATAL("get configer faile. Error:", err)
 	}
 	if len(HttpConf) <= 0 {
-		Common.WARN("Not Http configer.")
+		Common.FATAL("Not Http configer.")
 	}
 
 	//配置静态文件
