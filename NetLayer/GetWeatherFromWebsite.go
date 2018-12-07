@@ -16,6 +16,18 @@ type CityInfo struct {
 	Pname    string `json:"pname"`    //城市名称
 }
 
+//天气预警
+type TodayAlertWeather struct {
+	Content     string `json:"content"`     //内容
+	InfoID      string `json:"infoid"`      //预警ID
+	Level       string `json:"level"`       //等级
+	Name        string `json:"name"`        //预警名称
+	Pub_time    string `json:"pub_time"`    //发布时间
+	Title       string `json:"title"`       //标题
+	Type        string `json:"type"`        //预警类型
+	Update_time string `json:"update_time"` //更新时间
+}
+
 //天气实况
 type TodayWeather struct {
 	City        CityInfo `json:"city"`        //城市信息
@@ -110,3 +122,5 @@ func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, error) {
 		//超时更新缓存
 	}
 }
+
+//获取天气信息
