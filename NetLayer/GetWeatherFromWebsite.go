@@ -136,12 +136,12 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 }
 
 //获取今日天气简要
-func (this *WeatherCrawler) GetTodayBrief() (TodayWeatherBrief, TodayAlertWeather, error) {
+func (this *WeatherCrawler) GetTodayBrief(cityId int) (TodayWeatherBrief, TodayAlertWeather, error) {
 	//检测缓存
 	currTime := time.Now()
 	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= this.mBufferTimeOut {
 		//超时更新缓存
-		if err := this.UpdateWeatherBuff(0); err != nil {
+		if err := this.UpdateWeatherBuff(cityId); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -213,6 +213,7 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 		if err := json.Unmarshal(body, &RetData); err != nil {
 			return err
 		}
+		Common.DEBUG("Body:", string(body))
 		//更新缓存
 		this.mWeatherBuff.mTodayWeather = TodayCondition
 	default:
