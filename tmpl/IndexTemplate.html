@@ -1,13 +1,23 @@
 <html>
     <head>
-        <title>{{.Title}}</title>
+        <title>{{.Date}}</title>
         <link href="../static/css/style.css" type="text/css" rel="stylesheet">
         <script src="../static/js/WebSocketClient.js"></script>
     </head>
     <body>
-        <h1>This is Today</h1>
-        <h1>Date:{{.Date}}</h1>
-        <h1>Wather:{{.Weather}}</h1>
+        <div>
+            <ul>
+                <li> {{.Date}}; </li>
+                <li> 湿度：{{.Humidity}}; </li>
+                <li> 温度：{{.Temp}}; </li>
+                <li> 风级：{{.WindLevel}}; </li>
+                <li> {{.Icon}}; </li>
+                <li> {{.Tips}}; </li>
+                <li> 紫外线：{{.Uvi}}; </li>
+                <li> 空气指数：{{.Value}}; </li>
+                <li> 今日限行尾号：{{.Limit}}; </li>
+            </ul>
+        </div>
         <a href="javascript:ConnectToAssistantServer()">Update Wather</a>
     </body>
 </html>
