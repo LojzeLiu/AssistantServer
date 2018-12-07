@@ -43,7 +43,7 @@ type WeatherServer struct {
 }
 
 func (this *WeatherServer) Init() {
-	this.mFuncHandle = make(map[int16]func(interface{}) error)
+	this.mFuncHandle = make(map[CMD_TYEP]func(interface{}) error)
 	this.mFuncHandle[0] = this.liveHandle
 }
 

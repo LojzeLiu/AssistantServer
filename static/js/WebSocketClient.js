@@ -5,7 +5,7 @@ function ConnectToAssistantServer()
         var ws = new WebSocket("ws://127.0.0.1:2080/ws_accept/");
 
         ws.onopen = function(evt){
-            ws.send("Hello WebSockets!");
+            ws.send("{\"cmd\":0,\"verson\":\"1.0.0.0\",\"handle_data\":{\"msg\":\"Hello\"}}");
             console.log("Sending...");
         };
 
