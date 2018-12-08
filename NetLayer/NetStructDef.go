@@ -27,19 +27,40 @@ func (this CityInfo) String() string {
 
 //天气预警
 type TodayAlertWeather struct {
-	Content    string `json:"content"`     //内容
-	InfoID     string `json:"infoid"`      //预警ID
-	Level      string `json:"level"`       //等级
-	Name       string `json:"name"`        //预警名称
-	PubTime    string `json:"pub_time"`    //发布时间
-	Title      string `json:"title"`       //标题
-	Type       string `json:"type"`        //预警类型
-	UpdateTime string `json:"update_time"` //更新时间
+	Content string `json:"content"`  //内容
+	InfoID  string `json:"infoid"`   //预警ID
+	Level   string `json:"level"`    //等级
+	Name    string `json:"name"`     //预警名称
+	PubTime string `json:"pub_time"` //发布时间
+	Title   string `json:"title"`    //标题
+	Type    string `json:"type"`     //预警类型
 }
 
 func (this TodayAlertWeather) String() string {
 	return fmt.Sprintf("Content:%s;InfoID:%s;Level:%s;Name:%s;PubTime:%s;Title:%s;Type:%s;UpdateTime:%s;",
 		this.Content, this.InfoID, this.Level, this.Name, this.PubTime, this.Title, this.Type, this.UpdateTime)
+}
+
+//天气预警数据
+type TodayAlertData struct {
+	Alert TodayAlertWeather `json:"alert"`
+	City  CityInfo          `json:"city"`
+}
+
+func (this TodayAlertData) String() string {
+	return fmt.Sprintf("alert:{%s},city:{%s}", this.Alert.String(), this.City.String())
+}
+
+//天气预警返回协议
+type TodayAlertReturn struct {
+	Code int            `json:"code"`
+	Msg  string         `json:"msg"` //执行状态消息
+	RC   WeatherRC      `json:"rc"`
+	Data TodayAlertData `json:"data"`
+}
+
+func (this TodayAlertReturn) String() string {
+	return fmt.Sprintf("Code:%d; Msg:%s; RC:{%s}; Data:{%s}", this.Code, this.Msg, this.RC.String(), this.Data.String())
 }
 
 //天气实况
