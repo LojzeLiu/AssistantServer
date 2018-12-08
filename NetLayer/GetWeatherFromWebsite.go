@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+var gCrawlerConf map[string]string //配置信息
+
 type WeatherRC struct {
 	C int    `json:"c"`
 	P string `json:"p"`
@@ -181,6 +183,11 @@ type TodayWeatherBrief struct {
 	Limit     string `json:"limit"`     //汽车限行
 }
 
+func (this *TodayWeatherBrief) String() string {
+	return fmt.Sprintf("Title:%s; Date:%s;Humidity:%s;Temp:%s;WindLevel:%s;Icon:%s;Tips:%s;Uvi:%s;Value:%s;Limit:%s;",
+		this.Title, this.Date, this.Humidity, this.Temp, this.WindLevel, this.Icon, this.Tips, this.Uvi, this.Value, this.Limit)
+}
+
 //天气信息缓存
 type WeatherInfoBuffer struct {
 	mUpdateTime   int64              //更新时间
@@ -192,57 +199,13 @@ type WeatherInfoBuffer struct {
 	mLimitLastDay string             //限行数据最后一天
 }
 
-type WeatherCrawler struct {
-	mCrawlerConf   map[string]string         //配置信息
-	mBufferTimeOut time.Duration             //缓存更新间隔
-	mWeatherBuff   map[int]WeatherInfoBuffer //天气情况缓存
-}
-
-//初始化
-func (this *WeatherCrawler) Init(conf *Common.Configer) error {
-	var err error
-	if this.mCrawlerConf, err = conf.GetConf("CRAWLER"); err != nil {
-		return err
-	}
-
-	if len(this.mCrawlerConf) <= 0 {
-		return errors.New("Crawler configur not exit.")
-	}
-
-	gap, err := strconv.Atoi(this.mCrawlerConf["BufferTimeout"])
-	if err != nil {
-		return err
-	}
-	if gap <= 0 {
-		this.mBufferTimeOut = time.Duration(gap) * Common.Hour
-	} else {
-		this.mBufferTimeOut = Common.Hour * 2
-	}
-	this.mWeatherBuff = make(map[int]WeatherInfoBuffer)
-	Common.DEBUG("WeatherCrawler::Init Buffer timeout:", gap)
-
-	return nil
-}
-
-//获取今日天气简要
-func (this *WeatherCrawler) GetTodayBrief(cityId int) (*TodayWeatherBrief, *TodayAlertWeather, error) {
-	//检测缓存
-	currTime := time.Now().Unix()
-	if this.mWeatherBuff[cityId].mUpdateTime <= 0 || (currTime-this.mWeatherBuff[cityId].mUpdateTime) >= int64(this.mBufferTimeOut*60*60) {
-		//超时更新缓存
-		if err := this.UpdateWeatherBuff(cityId); err != nil {
-			return nil, nil, err
-		}
-		Common.DEBUG("WeatherCrawler::GetTodayBrif Update weather buffer.")
-		this.mWeatherBuff[cityId].mUpdateTime = time.Now().Unix()
-	}
-
-	//返回信息
-	return &this.mWeatherBuff[cityId].mTodayBrief, this.mWeatherBuff[cityId].mTodayAlert, nil
+func (this *WeatherInfoBuffer) String() string {
+	return fmt.Sprintf("Update time:%d; Today brief:%s; AQI:%s; Weather:%s;Alert:%v;limit Car:{%s},last day:%s;",
+		this.mUpdateTime, this.mTodayBrief.String(), this.mTodayAQI.String(), this.mTodayWeather.String(), this.mTodayAlert, this.mLimitCar, this.mLimitLastDay)
 }
 
 //更新天气信息
-func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
+func (this *WeatherInfoBuffer) UpdateWeatherBuff(cityId int) error {
 	//获取天气实况
 	if err := this.updateConditionWeather(cityId); err != nil {
 		Common.ERROR("updateConditionWeather failed. Reason:", err)
@@ -255,8 +218,8 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 		return err
 	}
 
-	if this.NeedUpdateLimit() {
-		Common.DEBUG("WeatherCrawler::UpdateWeatherBuff Update limit, Last date:", this.mWeatherBuff[cityId].mLimitLastDay, ";")
+	if this.NeedUpdateLimit(cityId) {
+		Common.DEBUG("WeatherCrawler::UpdateWeatherBuff Update limit, Last date:", this.mLimitLastDay, ";")
 		//获取限行
 		if err := this.updateLimit(cityId); err != nil {
 			Common.ERROR("updateLimit failed, Reason:", err)
@@ -268,23 +231,23 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	//更新天气简要
 	CurrTime := time.Now()
 	Today := fmt.Sprintf("%04d-%02d-%02d", CurrTime.Year(), int(CurrTime.Month()), CurrTime.Day())
-	this.mWeatherBuff[cityId].mTodayBrief.Date = this.mWeatherBuff[cityId].mTodayWeather.Condition.Updatetime
-	this.mWeatherBuff[cityId].mTodayBrief.Humidity = this.mWeatherBuff[cityId].mTodayWeather.Condition.Humidity
-	this.mWeatherBuff[cityId].mTodayBrief.Temp = this.mWeatherBuff[cityId].mTodayWeather.Condition.Temp
-	this.mWeatherBuff[cityId].mTodayBrief.WindLevel = this.mWeatherBuff[cityId].mTodayWeather.Condition.WindLevel
-	this.mWeatherBuff[cityId].mTodayBrief.Icon = this.mWeatherBuff[cityId].mTodayWeather.Condition.Icon
-	this.mWeatherBuff[cityId].mTodayBrief.Tips = this.mWeatherBuff[cityId].mTodayWeather.Condition.Tips
-	this.mWeatherBuff[cityId].mTodayBrief.Uvi = this.mWeatherBuff[cityId].mTodayWeather.Condition.Uvi
-	this.mWeatherBuff[cityId].mTodayBrief.Value = this.mWeatherBuff[cityId].mTodayAQI.AQI.Value
-	this.mWeatherBuff[cityId].mTodayBrief.Limit = this.mWeatherBuff[cityId].mLimitCar[Today]
+	this.mTodayBrief.Date = this.mTodayWeather.Condition.Updatetime
+	this.mTodayBrief.Humidity = this.mTodayWeather.Condition.Humidity
+	this.mTodayBrief.Temp = this.mTodayWeather.Condition.Temp
+	this.mTodayBrief.WindLevel = this.mTodayWeather.Condition.WindLevel
+	this.mTodayBrief.Icon = this.mTodayWeather.Condition.Icon
+	this.mTodayBrief.Tips = this.mTodayWeather.Condition.Tips
+	this.mTodayBrief.Uvi = this.mTodayWeather.Condition.Uvi
+	this.mTodayBrief.Value = this.mTodayAQI.AQI.Value
+	this.mTodayBrief.Limit = this.mLimitCar[Today]
 
 	return nil
 }
 
-func (this *WeatherCrawler) NeedUpdateLimit(cityId int) bool {
-	if len(this.mWeatherBuff[cityId].mLimitLastDay) > 0 {
+func (this *WeatherInfoBuffer) NeedUpdateLimit(cityId int) bool {
+	if len(this.mLimitLastDay) > 0 {
 		//分解
-		times := strings.Split(this.mWeatherBuff[cityId].mLimitLastDay, "-")
+		times := strings.Split(this.mLimitLastDay, "-")
 		if len(times) != 3 {
 			Common.ERROR("Error The times not three.")
 			return true
@@ -307,7 +270,7 @@ func (this *WeatherCrawler) NeedUpdateLimit(cityId int) bool {
 		//判断是否超出最后数据日
 		for i := 0; i < 3; i++ {
 			if Todays[i] > LastDay[i] {
-				Common.DEBUG("WeatherCrawler::NeedUpdateLimit Need update limit, LastDay:", this.mWeatherBuff[cityId].mLimitLastDay)
+				Common.DEBUG("WeatherCrawler::NeedUpdateLimit Need update limit, LastDay:", this.mLimitLastDay)
 				return true
 			}
 		}
@@ -319,7 +282,7 @@ func (this *WeatherCrawler) NeedUpdateLimit(cityId int) bool {
 	return false
 }
 
-func (this *WeatherCrawler) PostAPIrequest(cityId int, url, token, appcode string, cb func(*http.Response) error) error {
+func (this *WeatherInfoBuffer) PostAPIrequest(cityId int, url, token, appcode string, cb func(*http.Response) error) error {
 	//设置请求参数
 	query := fmt.Sprintf("cityId=%v&token=%v", cityId, token)
 	var err error
@@ -360,11 +323,10 @@ func (this *WeatherCrawler) PostAPIrequest(cityId int, url, token, appcode strin
 }
 
 //更新天气实况
-func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+func (this *WeatherInfoBuffer) updateConditionWeather(cityId int) error {
 	Common.DEBUG("WeatherCrawler::updateConditionWeather Update Condition city id:", cityId)
-
-	return this.PostAPIrequest(cityId, this.mCrawlerConf["ConditionURL"], this.mCrawlerConf["ConditionToken"],
-		this.mCrawlerConf["Appcode"], func(resp *http.Response) error {
+	return this.PostAPIrequest(cityId, gCrawlerConf["ConditionURL"], gCrawlerConf["ConditionToken"],
+		gCrawlerConf["Appcode"], func(resp *http.Response) error {
 			var RetData CondtionWeather
 			//分解返回信息
 			//解析Json
@@ -381,7 +343,7 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 			case 0:
 				//成功
 				//更新缓存
-				this.mWeatherBuff[cityId].mTodayWeather = RetData.Data
+				this.mTodayWeather = RetData.Data
 			case 1:
 				Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
 			case 2:
@@ -396,9 +358,9 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 }
 
 //更新空气情况
-func (this *WeatherCrawler) updateAQI(cityId int) error {
-	return this.PostAPIrequest(cityId, this.mCrawlerConf["AQIurl"], this.mCrawlerConf["AQItoken"],
-		this.mCrawlerConf["Appcode"], func(resp *http.Response) error {
+func (this *WeatherInfoBuffer) updateAQI(cityId int) error {
+	return this.PostAPIrequest(cityId, gCrawlerConf["AQIurl"], gCrawlerConf["AQItoken"],
+		gCrawlerConf["Appcode"], func(resp *http.Response) error {
 			var RetData AQIReturn
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
@@ -413,7 +375,7 @@ func (this *WeatherCrawler) updateAQI(cityId int) error {
 			switch RetData.Code {
 			case 0:
 				//成功更新缓存
-				this.mWeatherBuff[cityId].mTodayAQI = RetData.Data
+				this.mTodayAQI = RetData.Data
 			case 1:
 				Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
 			case 2:
@@ -429,8 +391,8 @@ func (this *WeatherCrawler) updateAQI(cityId int) error {
 }
 
 //更新限行信息
-func (this *WeatherCrawler) updateLimit(cityId int) error {
-	return this.PostAPIrequest(cityId, this.mCrawlerConf["LimitURL"], this.mCrawlerConf["LimitToken"], this.mCrawlerConf["Appcode"], func(resp *http.Response) error {
+func (this *WeatherInfoBuffer) updateLimit(cityId int) error {
+	return this.PostAPIrequest(cityId, gCrawlerConf["LimitURL"], gCrawlerConf["LimitToken"], gCrawlerConf["Appcode"], func(resp *http.Response) error {
 		var RetData LimitReturn
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -460,11 +422,11 @@ func (this *WeatherCrawler) updateLimit(cityId int) error {
 					}
 					InfoMsg = fmt.Sprintf("今日限行尾号：%s 和 %s", limits[0], limits[1])
 				}
-				if this.mWeatherBuff[cityId].mLimitCar == nil {
-					this.mWeatherBuff[cityId].mLimitCar = make(map[string]string)
+				if this.mLimitCar == nil {
+					this.mLimitCar = make(map[string]string)
 				}
-				this.mWeatherBuff[cityId].mLimitCar[string(Day.Date)] = InfoMsg
-				this.mWeatherBuff[cityId].mLimitLastDay = Day.Date
+				this.mLimitCar[string(Day.Date)] = InfoMsg
+				this.mLimitLastDay = Day.Date
 			}
 		case 1:
 			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
@@ -477,4 +439,57 @@ func (this *WeatherCrawler) updateLimit(cityId int) error {
 		}
 		return nil
 	})
+}
+
+type WeatherCrawler struct {
+	mBufferTimeOut time.Duration              //缓存更新间隔
+	mWeatherBuff   map[int]*WeatherInfoBuffer //天气情况缓存
+}
+
+//初始化
+func (this *WeatherCrawler) Init(conf *Common.Configer) error {
+	var err error
+	if gCrawlerConf, err = conf.GetConf("CRAWLER"); err != nil {
+		return err
+	}
+
+	if len(gCrawlerConf) <= 0 {
+		return errors.New("Crawler configur not exit.")
+	}
+
+	gap, err := strconv.Atoi(gCrawlerConf["BufferTimeout"])
+	if err != nil {
+		return err
+	}
+	if gap <= 0 {
+		this.mBufferTimeOut = time.Duration(gap) * Common.Hour
+	} else {
+		this.mBufferTimeOut = Common.Hour * 2
+	}
+	this.mWeatherBuff = make(map[int]*WeatherInfoBuffer)
+	Common.DEBUG("WeatherCrawler::Init Buffer timeout:", gap)
+
+	return nil
+}
+
+//获取今日天气简要
+func (this *WeatherCrawler) GetTodayBrief(cityId int) (*TodayWeatherBrief, *TodayAlertWeather, error) {
+	//检测缓存
+	Common.DEBUG("Get city id:", cityId)
+	if this.mWeatherBuff[cityId] == nil {
+		this.mWeatherBuff[cityId] = &WeatherInfoBuffer{}
+	}
+	lpBuff := this.mWeatherBuff[cityId]
+	currTime := time.Now().Unix()
+	if lpBuff.mUpdateTime <= 0 || (currTime-lpBuff.mUpdateTime) >= int64(this.mBufferTimeOut*60*60) {
+		//超时更新缓存
+		if err := lpBuff.UpdateWeatherBuff(cityId); err != nil {
+			return nil, nil, err
+		}
+		Common.DEBUG("WeatherCrawler::GetTodayBrif Update weather buffer.")
+		lpBuff.mUpdateTime = time.Now().Unix()
+	}
+
+	//返回信息
+	return &lpBuff.mTodayBrief, lpBuff.mTodayAlert, nil
 }
