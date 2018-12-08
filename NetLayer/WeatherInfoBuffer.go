@@ -16,13 +16,13 @@ import (
 
 //天气信息缓存
 type WeatherInfoBuffer struct {
-	mUpdateTime   int64              //更新时间
-	mTodayBrief   TodayWeatherBrief  //今日天气简要
-	mTodayAQI     AQIData            //今日空气质量
-	mTodayWeather TodayWeather       //今日天气实况
-	mTodayAlert   *TodayAlertWeather //今日预警
-	mLimitCar     map[string]string  //限行信息
-	mLimitLastDay string             //限行数据最后一天
+	mUpdateTime   int64               //更新时间
+	mTodayBrief   TodayWeatherBrief   //今日天气简要
+	mTodayAQI     AQIData             //今日空气质量
+	mTodayWeather TodayWeather        //今日天气实况
+	mTodayAlert   []TodayAlertWeather //今日预警
+	mLimitCar     map[string]string   //限行信息
+	mLimitLastDay string              //限行数据最后一天
 }
 
 func (this *WeatherInfoBuffer) String() string {
@@ -57,6 +57,11 @@ func (this *WeatherInfoBuffer) UpdateWeatherBuff(cityId int) error {
 	}
 
 	//获取预警
+	if err := this.updateAlert(cityId); err != nil {
+		Common.ERROR("updateAlert failed, Reason:", err)
+		return err
+	}
+
 	//更新天气简要
 	CurrTime := time.Now()
 	Today := fmt.Sprintf("%04d-%02d-%02d", CurrTime.Year(), int(CurrTime.Month()), CurrTime.Day())
@@ -257,6 +262,37 @@ func (this *WeatherInfoBuffer) updateLimit(cityId int) error {
 				this.mLimitCar[string(Day.Date)] = InfoMsg
 				this.mLimitLastDay = Day.Date
 			}
+		case 1:
+			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 2:
+			Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 10:
+			Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		default:
+			Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+		}
+		return nil
+	})
+}
+
+//更新天气预警
+func (this *WeatherInfoBuffer) updateAlert(cityId int) error {
+	return this.PostAPIrequest(cityId, gCrawlerConf["AlertURL"], gCrawlerConf["AlertToken"], gCrawlerConf["Appcode"], func(resp *http.Response) error {
+		var RetData TodayAlertReturn
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			Common.ERROR("updateAlert Read All failed, Reason:", err)
+			return err
+		}
+		if err := json.Unmarshal(body, &RetData); err != nil {
+			Common.ERROR("updateAlert Unmarshal failed, Reason:", err, "; body:", string(body))
+			return err
+		}
+
+		switch RetData.Code {
+		case 0:
+			//成功 更新缓存
+			this.mTodayAlert = RetData.Data.Alert
 		case 1:
 			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
 		case 2:

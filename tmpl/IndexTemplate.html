@@ -1,21 +1,30 @@
 <html>
     <head>
-        <title>{{.Title}}</title>
+        <title>{{.Weather.Title}}</title>
         <link href="../static/css/style.css" type="text/css" rel="stylesheet">
         <script src="../static/js/WebSocketClient.js"></script>
     </head>
     <body>
+        {{if .IsAlert}}
         <div>
             <ul>
-                <li> {{.Date}}; </li>
-                <li> 湿度：{{.Humidity}}; </li>
-                <li> 温度：{{.Temp}}; </li>
-                <li> 风级：{{.WindLevel}}; </li>
-                <li> {{.Icon}}; </li>
-                <li> {{.Tips}}; </li>
-                <li> 紫外线：{{.Uvi}}; </li>
-                <li> 空气指数：{{.Value}}; </li>
-                <li> 今日限行尾号：{{.Limit}}; </li>
+                {{range .Alert}}
+                <li>{{.Title}}</li>
+                {{end}}
+            </ul>
+        </div>
+        {{end}}
+        <div>
+            <ul>
+                <li> {{.Weather.Date}}; </li>
+                <li> 湿度：{{.Weather.Humidity}}; </li>
+                <li> 温度：{{.Weather.Temp}}; </li>
+                <li> 风级：{{.Weather.WindLevel}}; </li>
+                <li> {{.Weather.Icon}}; </li>
+                <li> {{.Weather.Tips}}; </li>
+                <li> 紫外线：{{.Weather.Uvi}}; </li>
+                <li> 空气指数：{{.Weather.Value}}; </li>
+                <li> 今日限行尾号：{{.Weather.Limit}}; </li>
             </ul>
         </div>
         <a href="javascript:ConnectToAssistantServer()">Update Wather</a>

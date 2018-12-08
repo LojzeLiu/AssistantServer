@@ -42,7 +42,7 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 }
 
 //获取今日天气简要
-func (this *WeatherCrawler) GetTodayBrief(cityId int) (*TodayWeatherBrief, *TodayAlertWeather, error) {
+func (this *WeatherCrawler) GetTodayBrief(cityId int) (*TodayWeatherBrief, []TodayAlertWeather, error) {
 	//检测缓存
 	Common.DEBUG("Get city id:", cityId)
 	if this.mWeatherBuff[cityId] == nil {
