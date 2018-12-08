@@ -12,6 +12,15 @@ import (
 	"time"
 )
 
+type WeatherRC struct {
+	C int    `json:"c"`
+	P string `json:"p"`
+}
+
+func (this WeatherRC) String() string {
+	return fmt.Sprintf("c:%d;p:%s", this.C, this.P)
+}
+
 //城市信息
 type CityInfo struct {
 	CityId   int32  `json:"cityId"`   //城市ID
@@ -85,15 +94,37 @@ type TodayAQI struct {
 	Value    string `json:"value"`    //空气质量指数值
 }
 
+func (this TodayAQI) String() string {
+	return fmt.Sprintf("CityName:%s;Co:%s;No2:%s;O3:%s;Pm10:%s;Pm25:%s;Pubtime:%s;Rank:%s;So2:%s;Value:%s",
+		this.CityName, this.Co, this.No2, this.O3, this.Pm10, this.Pm25, this.Pubtime, this.Rank, this.So2, this.Value)
+}
+
+//空气质量数据
+type AQIData struct {
+	City CityInfo `json:"city"` //城市信息
+	AQI  TodayAQI `json:"aqi"`  //空气信息
+}
+
+func (this AQIData) String() string {
+	return fmt.Sprintf("City:{%s},AQI:{%s}", this.City.String(), this.AQI.String())
+}
+
+//空气质量API返回协议
+type AQIReturn struct {
+	Code int       `json:"code"`
+	Msg  string    `json:"msg"` //执行状态消息
+	RC   WeatherRC `json:"rc"`
+	Data AQIData   `json:"data"`
+}
+
+func (this AQIReturn) String() string {
+	fmt.Sprintf("Code:%d;Msg:%s;RC:{%s};Data:{%s}", this.Code, this.Msg, this.RC, this.Data.String())
+}
+
 //限行信息
 type DayLimit struct {
 	Date   string `json:"date"`
 	Prompt string `json:"Prompt"`
-}
-
-type WeatherRC struct {
-	C int    `json:"c"`
-	P string `json:"p"`
 }
 
 //天气实况API返回协议
@@ -205,12 +236,10 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	return nil
 }
 
-//更新天气实况
-func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
-	Common.DEBUG("Update Condition city id:", cityId)
+func (this *WeatherCrawler) CreateAPIpost(cityID int, token, url, appcode string) (*http.Request, error) {
 	//设置请求参数
-	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["ConditionToken"])
-	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], bytes.NewBuffer([]byte(query)))
+	query := fmt.Sprintf("cityId=%v&token=%v", cityID, token)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		Common.ERROR("New Request Failed, Reason:", err)
 		return err
@@ -218,18 +247,23 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 
 	//设置请求头
 	APPCODE := "APPCODE "
-	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
+	APPCODE = APPCODE + appcode
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	req.Header.Set("Authorization", APPCODE)
 
-	//发起请求
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	return req
+}
+
+//更新天气实况
+func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+	Common.DEBUG("Update Condition city id:", cityId)
+
+	//生成头
+	req, err := this.CreateAPIpost(cityId, this.mCrawlerConf["ConditionToken"], this.mCrawlerConf["ConditionURL"], this.mCrawlerConf["Appcode"])
 	if err != nil {
-		Common.ERROR("Client Do failed. Reason:", err)
+		Common.ERROR("Create API Post head failed. Reason:", err)
 		return err
 	}
-	defer resp.Body.Close()
 
 	var RetData CondtionWeather
 	//分解返回信息
@@ -273,4 +307,29 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 
 //更新空气情况
 func (this *WeatherCrawler) updateAQI(cityId int) error {
+	//生成头
+	req, err := this.CreateAPIpost(cityId, this.mCrawlerConf["AQItoken"], this.mCrawlerConf["AQIurl"], this.mCrawlerConf["Appcode"])
+	if err != nil {
+		Common.ERROR("Create API Post head failed. Reason:", err)
+		return err
+	}
+
+	//发起请求
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		Common.ERROR("Client Do failed. Reason:", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		//200 OK
+	default:
+		//失败
+		errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
+		Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
+		return errors.New(errMsg)
+	}
 }
