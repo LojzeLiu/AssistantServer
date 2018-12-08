@@ -9,9 +9,10 @@ import (
 )
 
 type AlertShow struct {
-	IsAlert bool
-	Weather *NetLayer.TodayWeatherBrief
-	Alert   []NetLayer.TodayAlertWeather
+	AlertLeve string
+	IsAlert   bool
+	Weather   *NetLayer.TodayWeatherBrief
+	Alert     []NetLayer.TodayAlertWeather
 }
 
 func (this AlertShow) String() string {
@@ -34,6 +35,7 @@ func DisplyIndex(w http.ResponseWriter, req *http.Request) {
 		Common.DEBUG("Early Weather")
 		Show.IsAlert = true
 		Show.Alert = TodayEarly
+		Show.AlertLeve = "#FF0000"
 	}
 	tmpl := template.Must(template.ParseFiles("./tmpl/IndexTemplate.html"))
 	tmpl.Execute(w, Show)

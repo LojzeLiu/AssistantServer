@@ -6,12 +6,13 @@
     </head>
     <body>
         {{if .IsAlert}}
-        <div>
+        <div style='background:{{.AlertLeve}}'>
+            {{range .Alert}}
             <ul>
-                {{range .Alert}}
                 <li>{{.Title}}</li>
-                {{end}}
+                <li>{{.Content}}</li>
             </ul>
+            {{end}}
         </div>
         {{end}}
         <div>
