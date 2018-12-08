@@ -118,7 +118,7 @@ type AQIReturn struct {
 }
 
 func (this AQIReturn) String() string {
-	fmt.Sprintf("Code:%d;Msg:%s;RC:{%s};Data:{%s}", this.Code, this.Msg, this.RC, this.Data.String())
+	return fmt.Sprintf("Code:%d;Msg:%s;RC:{%s};Data:{%s}", this.Code, this.Msg, this.RC, this.Data.String())
 }
 
 //限行信息
@@ -236,16 +236,19 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	this.mWeatherBuff.mTodayBrief.Icon = this.mWeatherBuff.mTodayWeather.Condition.Icon
 	this.mWeatherBuff.mTodayBrief.Tips = this.mWeatherBuff.mTodayWeather.Condition.Tips
 	this.mWeatherBuff.mTodayBrief.Uvi = this.mWeatherBuff.mTodayWeather.Condition.Uvi
-	this.mWeatherBuff.mTodayBrief.Value = this.mWeatherBuff.mTodayAQI.Value
+	this.mWeatherBuff.mTodayBrief.Value = this.mWeatherBuff.mTodayAQI.AQI.Value
 	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today].Prompt
 
 	return nil
 }
 
-func (this *WeatherCrawler) CreateAPIpost(cityID int, token, url, appcode string) (*http.Request, error) {
+//更新天气实况
+func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+	Common.DEBUG("Update Condition city id:", cityId)
 	//设置请求参数
-	query := fmt.Sprintf("cityId=%v&token=%v", cityID, token)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(query)))
+	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["ConditionToken"])
+	var err error
+	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		Common.ERROR("New Request Failed, Reason:", err)
 		return err
@@ -253,23 +256,18 @@ func (this *WeatherCrawler) CreateAPIpost(cityID int, token, url, appcode string
 
 	//设置请求头
 	APPCODE := "APPCODE "
-	APPCODE = APPCODE + appcode
+	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	req.Header.Set("Authorization", APPCODE)
 
-	return req
-}
-
-//更新天气实况
-func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
-	Common.DEBUG("Update Condition city id:", cityId)
-
-	//生成头
-	req, err := this.CreateAPIpost(cityId, this.mCrawlerConf["ConditionToken"], this.mCrawlerConf["ConditionURL"], this.mCrawlerConf["Appcode"])
+	//发起请求
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
-		Common.ERROR("Create API Post head failed. Reason:", err)
+		Common.ERROR("Client Do failed. Reason:", err)
 		return err
 	}
+	defer resp.Body.Close()
 
 	var RetData CondtionWeather
 	//分解返回信息
@@ -313,11 +311,20 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 //更新空气情况
 func (this *WeatherCrawler) updateAQI(cityId int) error {
 	//生成头
-	req, err := this.CreateAPIpost(cityId, this.mCrawlerConf["AQItoken"], this.mCrawlerConf["AQIurl"], this.mCrawlerConf["Appcode"])
+	//设置请求参数
+	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["AQItoken"])
+	var err error
+	req, err := http.NewRequest("POST", this.mCrawlerConf["AQIurl"], bytes.NewBuffer([]byte(query)))
 	if err != nil {
-		Common.ERROR("Create API Post head failed. Reason:", err)
+		Common.ERROR("New Request Failed, Reason:", err)
 		return err
 	}
+
+	//设置请求头
+	APPCODE := "APPCODE "
+	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("Authorization", APPCODE)
 
 	//发起请求
 	client := &http.Client{}
@@ -345,7 +352,7 @@ func (this *WeatherCrawler) updateAQI(cityId int) error {
 		switch RetData.Code {
 		case 0:
 			//成功更新缓存
-			this.mWeatherBuff.mTodayAQI = AQIReturn.Data
+			this.mWeatherBuff.mTodayAQI = RetData.Data
 		case 1:
 			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
 		case 2:
