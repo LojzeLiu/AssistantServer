@@ -189,6 +189,7 @@ type WeatherInfoBuffer struct {
 	mTodayWeather TodayWeather       //今日天气实况
 	mTodayAlert   *TodayAlertWeather //今日预警
 	mLimitCar     map[string]string  //限行信息
+	mLimitLastDay string             //限行数据最后一天
 }
 
 type WeatherCrawler struct {
@@ -254,11 +255,15 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 		return err
 	}
 
-	//获取限行
-	if err := this.updateLimit(cityId); err != nil {
-		Common.ERROR("updateLimit failed, Reason:", err)
-		return err
+	if this.NeedUpdateLimit() {
+		Common.DEBUG("Update limit, Last date:", this.mWeatherBuff.mLimitLastDay, ";")
+		//获取限行
+		if err := this.updateLimit(cityId); err != nil {
+			Common.ERROR("updateLimit failed, Reason:", err)
+			return err
+		}
 	}
+
 	//获取预警
 	//更新天气简要
 	CurrTime := time.Now()
@@ -274,6 +279,44 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today]
 
 	return nil
+}
+
+func (this *WeatherCrawler) NeedUpdateLimit() bool {
+	if len(this.mWeatherBuff.mLimitLastDay) > 0 {
+		//分解
+		times := strings.Split(this.mWeatherBuff.mLimitLastDay, "-")
+		if len(times) != 3 {
+			Common.ERROR("Error The times not three.")
+			return true
+		}
+		var LastDay []int
+		for _, t := range times {
+			i, err := strconv.Atoi(t)
+			if err != nil {
+				Common.ERROR("Atoi failed, Reason:", err)
+				return true
+			}
+			LastDay = append(LastDay, i)
+		}
+		var Todays []int
+		Curr := time.Now()
+		Todays = append(Todays, Curr.Year())
+		Todays = append(Todays, int(Curr.Month()))
+		Todays = append(Todays, Curr.Day())
+
+		//判断是否超出最后数据日
+		for i := 0; i < 3; i++ {
+			if Todays[i] > LastDay[i] {
+				Common.DEBUG("Need update limit, LastDay:", this.mWeatherBuff.mLimitLastDay)
+				return true
+			}
+		}
+	} else {
+		Common.DEBUG("This is need update.")
+		return true
+	}
+
+	return false
 }
 
 func (this *WeatherCrawler) PostAPIrequest(cityId int, url, token, appcode string, cb func(*http.Response) error) error {
@@ -418,6 +461,7 @@ func (this *WeatherCrawler) updateLimit(cityId int) error {
 					InfoMsg = fmt.Sprintf("今日限行尾号：%s 和 %s", limits[0], limits[1])
 				}
 				this.mWeatherBuff.mLimitCar[string(Day.Date)] = InfoMsg
+				this.mWeatherBuff.mLimitLastDay = Day.Date
 			}
 		case 1:
 			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
