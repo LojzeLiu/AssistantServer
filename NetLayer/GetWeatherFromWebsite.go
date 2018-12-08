@@ -2,12 +2,12 @@ package NetLayer
 
 import (
 	"Common"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 )
@@ -18,6 +18,10 @@ type CityInfo struct {
 	Counname string `json:"counname"` //国家
 	Name     string `json:"name"`     //区名称
 	Pname    string `json:"pname"`    //城市名称
+}
+
+func (this CityInfo) String() string {
+	return fmt.Sprintf("Citty id:%d; Counname:%s; Name:%s; Pname:%s;", this.CityId, this.Counname, this.Name, this.Pname)
 }
 
 //天气预警
@@ -52,6 +56,12 @@ type TodayWeather struct {
 	WindSpeed   string   `json:"windSpeed"`   //风速
 }
 
+func (this *TodayWeather) String() string {
+	return fmt.Sprintf("city:{%s}; Condtion:%s; ConditionId:%s; Humidity:%s; icon:%s; Pressure:%s;RealFeel:%s; SunRise:%s; SunSet:%s; Updatetime:%s; Uvi:%s; WindDir:%s;windLevel:%s;WindSpeed:%s",
+		this.City.String(), this.Condition, this.ConditionId, this.Humidity, this.Icon, this.Pressure, this.RealFeel, this.SunRise, this.SunSet, this.Updatetime, this.Uvi,
+		this.WindDir, this.WindLevel, this.WindSpeed)
+}
+
 //空气质量
 type TodayAQI struct {
 	CityName string `json:"cityName"` //城市名称
@@ -77,12 +87,16 @@ type WeatherRC struct {
 	P string `json:"p"`
 }
 
-//天气API返回协议
-type AlicityWeather struct {
-	Code int         `json:"code"` //执行状态码
-	Data interface{} `json:"data"` //天气数据
-	Msg  string      `json:"msg"`  //执行状态消息
-	RC   WeatherRC   `json:"rc"`
+//天气实况API返回协议
+type CondtionWeather struct {
+	Code int          `json:"code"` //执行状态码
+	Data TodayWeather `json:"data"` //天气数据
+	Msg  string       `json:"msg"`  //执行状态消息
+	RC   WeatherRC    `json:"rc"`
+}
+
+func (this CondtionWeather) String() string {
+	return fmt.Sprintf("code:%d;msg:%s;Data:{%s};", this.Code, this.Msg, this.Data.String())
 }
 
 //向客户端返回今天天气简要
@@ -100,7 +114,7 @@ type TodayWeatherBrief struct {
 
 //天气信息缓存
 type WeatherInfoBuffer struct {
-	mUpdateTime   time.Time           //更新时间
+	mUpdateTime   int64               //更新时间
 	mTodayBrief   TodayWeatherBrief   //今日天气简要
 	mTodayAQI     TodayAQI            //今日空气质量
 	mTodayWeather TodayWeather        //今日天气实况
@@ -109,13 +123,14 @@ type WeatherInfoBuffer struct {
 }
 
 type WeatherCrawler struct {
-	mCrawlerConf   Common.Configer    //配置信息
-	mBufferTimeOut time.Duration      //缓存更新间隔
-	mWeatherBuff   *WeatherInfoBuffer //天气情况缓存
+	mCrawlerConf   map[string]string //配置信息
+	mBufferTimeOut time.Duration     //缓存更新间隔
+	mWeatherBuff   WeatherInfoBuffer //天气情况缓存
 }
 
 //初始化
 func (this *WeatherCrawler) Init(conf *Common.Configer) error {
+	var err error
 	if this.mCrawlerConf, err = conf.GetConf("CRAWLER"); err != nil {
 		return err
 	}
@@ -124,9 +139,12 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 		return errors.New("Crawler configur not exit.")
 	}
 
-	gap := strconv.Atoi(this.mCrawlerConf["BufferTimeout"])
+	gap, err := strconv.Atoi(this.mCrawlerConf["BufferTimeout"])
+	if err != nil {
+		return err
+	}
 	if gap <= 0 {
-		this.mBufferTimeOut = time.Duration(gap)
+		this.mBufferTimeOut = time.Duration(gap) * Common.Hour
 	} else {
 		this.mBufferTimeOut = Common.Hour * 2
 	}
@@ -136,24 +154,27 @@ func (this *WeatherCrawler) Init(conf *Common.Configer) error {
 }
 
 //获取今日天气简要
-func (this *WeatherCrawler) GetTodayBrief(cityId int) (TodayWeatherBrief, TodayAlertWeather, error) {
+func (this *WeatherCrawler) GetTodayBrief(cityId int) (*TodayWeatherBrief, *TodayAlertWeather, error) {
 	//检测缓存
-	currTime := time.Now()
-	if this.mWeatherBuff.mUpdateTime.Sub(currTime) >= this.mBufferTimeOut {
+	currTime := time.Now().Unix()
+	if this.mWeatherBuff.mUpdateTime <= 0 || (currTime-this.mWeatherBuff.mUpdateTime) >= int64(this.mBufferTimeOut*60*60) {
 		//超时更新缓存
 		if err := this.UpdateWeatherBuff(cityId); err != nil {
 			return nil, nil, err
 		}
+		Common.DEBUG("Update weather buffer.")
+		this.mWeatherBuff.mUpdateTime = time.Now().Unix()
 	}
 
 	//返回信息
-	return this.mWeatherBuff.mTodayBrief, this.mWeatherBuff.mTodayAlert, nil
+	return &this.mWeatherBuff.mTodayBrief, this.mWeatherBuff.mTodayAlert, nil
 }
 
 //更新天气信息
 func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	//获取天气实况
 	if err := this.updateConditionWeather(cityId); err != nil {
+		Common.ERROR("updateConditionWeather failed. Reason:", err)
 		return err
 	}
 	//获取空气质量
@@ -169,23 +190,24 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	this.mWeatherBuff.mTodayBrief.Tips = this.mWeatherBuff.mTodayWeather.Tips
 	this.mWeatherBuff.mTodayBrief.Uvi = this.mWeatherBuff.mTodayWeather.Uvi
 	this.mWeatherBuff.mTodayBrief.Value = this.mWeatherBuff.mTodayAQI.Value
-	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today]
+	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today].Prompt
 
 	return nil
 }
 
 //更新天气实况
 func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+	Common.DEBUG("Update Condition city id:", cityId)
 	//设置请求参数
-	var query string
-	fmt.Fprintf(query, "cityId=%v&token=%v", cityId, this.mCrawlerConf["token"])
-	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], query)
+	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["token"])
+	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], bytes.NewBuffer([]byte(query)))
 	if err != nil {
+		Common.ERROR("New Request Failed, Reason:", err)
 		return err
 	}
 
 	//设置请求头
-	APPCODE := "APPCODE"
+	APPCODE := "APPCODE "
 	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
 	req.Header.Set("Authorization", APPCODE)
@@ -194,13 +216,13 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		Common.ERROR("Client Do failed. Reason:", err)
 		return err
 	}
 	defer resp.Body.Close()
 
-	var TodayCondition TodayWeather
-	var RetData AlicityWeather
-	RetData.Data.(TodayWeather)
+	var RetData CondtionWeather
+	Common.DEBUG("The Befor RetData:", RetData)
 	//分解返回信息
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -208,17 +230,33 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 		//解析Json
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			Common.ERROR("Read All filed. Reason:", err)
 			return err
 		}
 		if err := json.Unmarshal(body, &RetData); err != nil {
+			Common.ERROR("Unmarshal Filed. Reason:", err)
 			return err
 		}
 		Common.DEBUG("Body:", string(body))
-		//更新缓存
-		this.mWeatherBuff.mTodayWeather = TodayCondition
+		switch RetData.Code {
+		case 0:
+			//成功
+			//更新缓存
+			Common.DEBUG("Ret Data:", RetData)
+			this.mWeatherBuff.mTodayWeather = RetData.Data
+		case 1:
+			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 2:
+			Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 10:
+			Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		default:
+			Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+		}
 	default:
 		//失败
-		errMsg := fmt.Sprint("HTTP Post request failed, status code:", resp.StatusCode, "; Status:", resp.Status)
+		errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
+		Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
 		return errors.New(errMsg)
 	}
 

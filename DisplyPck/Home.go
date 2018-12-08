@@ -1,18 +1,23 @@
 package DisplyPck
 
 import (
-	"AssistantServer/NetLayer"
+	"Common"
+	"fmt"
 	"html/template"
 	"net/http"
 )
 
 func DisplyIndex(w http.ResponseWriter, req *http.Request) {
-	TodayWeather, TodayEarly, err := gCrawler.GetTodayBrief(101010100)
+	TodayWeather, TodayEarly, err := gCrawler.GetTodayBrief(2)
 	if err != nil {
-		errTmp := template.Must(template.ParseFiles("./tmpl"))
-		errData := ErrorInfo{Msg: err}
+		errTmp := template.Must(template.ParseFiles("./tmpl/ErrorTemp.html"))
+		errData := ErrorInfo{Title: "Error", Msg: fmt.Sprint("Get Today Brief Failed. Reason:", err)}
 		errTmp.Execute(w, errData)
+		Common.ERROR("Get Today Brief Failed. Reason:", err)
 		return
+	}
+	if TodayEarly != nil {
+		Common.DEBUG("Early Weather")
 	}
 	tmpl := template.Must(template.ParseFiles("./tmpl/IndexTemplate.html"))
 	tmpl.Execute(w, TodayWeather)

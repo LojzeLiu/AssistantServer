@@ -37,7 +37,7 @@ func main() {
 	defer Common.CloseLogger()
 
 	//初始化显式数据
-	var disply DisplyData
+	var disply DisplyPck.DisplyData
 	if err := disply.Init(conf); err != nil {
 		Common.FATAL("Disply Data Initializtion failed. Reason:", err)
 	}

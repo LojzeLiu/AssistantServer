@@ -17,5 +17,6 @@ func (this *DisplyData) Init(conf *Common.Configer) error {
 }
 
 type ErrorInfo struct {
-	Msg string
+	Title string
+	Msg   string
 }
