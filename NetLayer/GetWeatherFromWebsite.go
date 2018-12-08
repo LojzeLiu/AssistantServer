@@ -268,13 +268,11 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	return nil
 }
 
-//更新天气实况
-func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
-	Common.DEBUG("Update Condition city id:", cityId)
+func (this *WeatherCrawler) PostAPIrequest(cityId int, url, token, appcode, contentType string, cb func(http.Response) error) error {
 	//设置请求参数
-	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["ConditionToken"])
+	query := fmt.Sprintf("cityId=%v&token=%v", cityId, token)
 	var err error
-	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], bytes.NewBuffer([]byte(query)))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		Common.ERROR("New Request Failed, Reason:", err)
 		return err
@@ -282,8 +280,8 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 
 	//设置请求头
 	APPCODE := "APPCODE "
-	APPCODE = APPCODE + this.mCrawlerConf["Appcode"]
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	APPCODE = APPCODE + appcode
+	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Authorization", APPCODE)
 
 	//发起请求
@@ -294,44 +292,92 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 		return err
 	}
 	defer resp.Body.Close()
+	return cb.(resp)
 
-	var RetData CondtionWeather
-	//分解返回信息
-	switch resp.StatusCode {
-	case http.StatusOK:
-		//请求成功 200 OK
-		//解析Json
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			Common.ERROR("Read All filed. Reason:", err)
-			return err
-		}
-		if err := json.Unmarshal(body, &RetData); err != nil {
-			Common.ERROR("Unmarshal Filed. Reason:", err)
-			return err
-		}
-		switch RetData.Code {
-		case 0:
-			//成功
-			//更新缓存
-			this.mWeatherBuff.mTodayWeather = RetData.Data
-		case 1:
-			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
-		case 2:
-			Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
-		case 10:
-			Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+	/*
+		var RetData CondtionWeather
+		//分解返回信息
+		switch resp.StatusCode {
+		case http.StatusOK:
+			//请求成功 200 OK
+			//解析Json
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				Common.ERROR("Read All filed. Reason:", err)
+				return err
+			}
+			if err := json.Unmarshal(body, &RetData); err != nil {
+				Common.ERROR("Unmarshal Filed. Reason:", err)
+				return err
+			}
+			switch RetData.Code {
+			case 0:
+				//成功
+				//更新缓存
+				this.mWeatherBuff.mTodayWeather = RetData.Data
+			case 1:
+				Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
+			case 2:
+				Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+			case 10:
+				Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+			default:
+				Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+			}
 		default:
-			Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+			//失败
+			errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
+			Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
+			return errors.New(errMsg)
 		}
-	default:
-		//失败
-		errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
-		Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
-		return errors.New(errMsg)
-	}
 
-	return nil
+		return nil
+	*/
+}
+
+//更新天气实况
+func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
+	Common.DEBUG("Update Condition city id:", cityId)
+
+	return this.PostAPIrequest(cityId, this.mCrawlerConf[""], this.mCrawlerConf[""], this.mCrawlerConf[""], "", func(resp http.Response) {
+		var RetData CondtionWeather
+		//分解返回信息
+		switch resp.StatusCode {
+		case http.StatusOK:
+			//请求成功 200 OK
+			//解析Json
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				Common.ERROR("Read All filed. Reason:", err)
+				return err
+			}
+			if err := json.Unmarshal(body, &RetData); err != nil {
+				Common.ERROR("Unmarshal Filed. Reason:", err)
+				return err
+			}
+			switch RetData.Code {
+			case 0:
+				//成功
+				//更新缓存
+				this.mWeatherBuff.mTodayWeather = RetData.Data
+			case 1:
+				Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
+			case 2:
+				Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+			case 10:
+				Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+			default:
+				Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+			}
+		default:
+			//失败
+			errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
+			Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
+			return errors.New(errMsg)
+		}
+
+		return nil
+	})
 }
 
 //更新空气情况
@@ -396,4 +442,9 @@ func (this *WeatherCrawler) updateAQI(cityId int) error {
 	}
 
 	return nil
+}
+
+//更新限行信息
+func (this *WeatherCrawler) updateLimit(cityId int) error {
+
 }
