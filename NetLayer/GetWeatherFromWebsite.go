@@ -157,7 +157,7 @@ type TodayWeatherBrief struct {
 type WeatherInfoBuffer struct {
 	mUpdateTime   int64               //更新时间
 	mTodayBrief   TodayWeatherBrief   //今日天气简要
-	mTodayAQI     TodayAQI            //今日空气质量
+	mTodayAQI     AQIData             //今日空气质量
 	mTodayWeather TodayWeather        //今日天气实况
 	mTodayAlert   *TodayAlertWeather  //今日预警
 	mLimitCar     map[string]DayLimit //限行信息
@@ -218,7 +218,13 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 		Common.ERROR("updateConditionWeather failed. Reason:", err)
 		return err
 	}
+
 	//获取空气质量
+	if err := this.updateAQI(cityId); err != nil {
+		Common.ERROR("updateAQI failed. Reason:", err)
+		return err
+	}
+
 	//获取限行
 	//获取预警
 	//更新天气简要
@@ -280,7 +286,6 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 			Common.ERROR("Unmarshal Filed. Reason:", err)
 			return err
 		}
-		Common.DEBUG("Body:", string(body))
 		switch RetData.Code {
 		case 0:
 			//成功
@@ -323,13 +328,39 @@ func (this *WeatherCrawler) updateAQI(cityId int) error {
 	}
 	defer resp.Body.Close()
 
+	var RetData AQIReturn
 	switch resp.StatusCode {
 	case http.StatusOK:
 		//200 OK
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			Common.ERROR("updateAQI Read all failed. Reason:", err)
+			return err
+		}
+		//解析到JSON
+		if err := json.Unmarshal(body, &RetData); err != nil {
+			Common.ERROR("updateAQI Unmarshal failed, Reason:", err)
+			return err
+		}
+		switch RetData.Code {
+		case 0:
+			//成功更新缓存
+			this.mWeatherBuff.mTodayAQI = AQIReturn.Data
+		case 1:
+			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 2:
+			Common.ERROR("Error is the Sign invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		case 10:
+			Common.ERROR("Error is the location invalied.code:", RetData.Code, "; msg:", RetData.Msg)
+		default:
+			Common.ERROR("Error unknown code:", RetData.Code, "; msg:", RetData.Msg)
+		}
 	default:
 		//失败
 		errMsg := fmt.Sprint("HTTP Post Request failed, Status Code:", resp.StatusCode, "; Status:", resp.Status)
 		Common.ERROR("Unknown HTTP Code: ", resp.StatusCode, "; Status:", resp.Status)
 		return errors.New(errMsg)
 	}
+
+	return nil
 }
