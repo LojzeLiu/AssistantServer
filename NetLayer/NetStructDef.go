@@ -27,14 +27,19 @@ func (this CityInfo) String() string {
 
 //天气预警
 type TodayAlertWeather struct {
-	Content     string `json:"content"`     //内容
-	InfoID      string `json:"infoid"`      //预警ID
-	Level       string `json:"level"`       //等级
-	Name        string `json:"name"`        //预警名称
-	Pub_time    string `json:"pub_time"`    //发布时间
-	Title       string `json:"title"`       //标题
-	Type        string `json:"type"`        //预警类型
-	Update_time string `json:"update_time"` //更新时间
+	Content    string `json:"content"`     //内容
+	InfoID     string `json:"infoid"`      //预警ID
+	Level      string `json:"level"`       //等级
+	Name       string `json:"name"`        //预警名称
+	PubTime    string `json:"pub_time"`    //发布时间
+	Title      string `json:"title"`       //标题
+	Type       string `json:"type"`        //预警类型
+	UpdateTime string `json:"update_time"` //更新时间
+}
+
+func (this TodayAlertWeather) String() string {
+	return fmt.Sprintf("Content:%s;InfoID:%s;Level:%s;Name:%s;PubTime:%s;Title:%s;Type:%s;UpdateTime:%s;",
+		this.Content, this.InfoID, this.Level, this.Name, this.PubTime, this.Title, this.Type, this.UpdateTime)
 }
 
 //天气实况
