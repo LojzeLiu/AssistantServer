@@ -80,6 +80,18 @@ func (this *TodayWeather) String() string {
 	return fmt.Sprintf("City:{%s};Condition:{%s}", this.City.String(), this.Condition.String())
 }
 
+//天气实况API返回协议
+type CondtionWeather struct {
+	Code int          `json:"code"` //执行状态码
+	Data TodayWeather `json:"data"` //天气数据
+	Msg  string       `json:"msg"`  //执行状态消息
+	RC   WeatherRC    `json:"rc"`
+}
+
+func (this CondtionWeather) String() string {
+	return fmt.Sprintf("code:%d;msg:%s;Data:{%s};", this.Code, this.Msg, this.Data.String())
+}
+
 //空气质量
 type TodayAQI struct {
 	CityName string `json:"cityName"` //城市名称
@@ -127,16 +139,30 @@ type DayLimit struct {
 	Prompt string `json:"Prompt"`
 }
 
-//天气实况API返回协议
-type CondtionWeather struct {
-	Code int          `json:"code"` //执行状态码
-	Data TodayWeather `json:"data"` //天气数据
-	Msg  string       `json:"msg"`  //执行状态消息
-	RC   WeatherRC    `json:"rc"`
+func (this DayLimit) String() string {
+	return fmt.Sprintf("Date:%s; Prompt:%s", this.Date, this.Prompt)
 }
 
-func (this CondtionWeather) String() string {
-	return fmt.Sprintf("code:%d;msg:%s;Data:{%s};", this.Code, this.Msg, this.Data.String())
+//限行数据
+type LimitData struct {
+	City  CityInfo   `json:"city"`
+	Limit []DayLimit `json:"limit"`
+}
+
+func (this LimitData) String() string {
+	return fmt.Sprintf("City:{%s};Limit:{%v}", this.City.String(), this.Limit)
+}
+
+//限行返回协议
+type LimitReturn struct {
+	Code int       `json:"code"`
+	Msg  string    `json:"msg"` //执行状态消息
+	RC   WeatherRC `json:"rc"`
+	Data LimitData `json:"data`
+}
+
+func (this LimitReturn) String() string {
+	return fmt.Sprintf("code:%d;msg:%s;data{%s};rc:{%s}", this.Code, this.Msg, this.Data.String(), this.RC.String())
 }
 
 //向客户端返回今天天气简要
