@@ -37,29 +37,38 @@ type TodayAlertWeather struct {
 }
 
 //天气实况
+type TodayCondition struct {
+	Condition   string `json:"condition"`   //天气阴晴
+	ConditionId string `json:"conditionId"` //实时天气 id
+	Humidity    string `json:"humidity"`    //湿度
+	Icon        string `json:"icon"`        //图标
+	Pressure    string `json:"pressure"`    //气压
+	RealFeel    string `json:"realFeel"`    //体感温度
+	SunRise     string `json:"sunRise"`     //日出时间
+	SunSet      string `json:"sunSet"`      //日落时间
+	Temp        string `json:"temp"`        //温度
+	Tips        string `json:"tips"`        //提示
+	Updatetime  string `json:"updatetime"`  //更新时间
+	Uvi         string `json:"uvi"`         //紫外线强度
+	WindDir     string `json:"windDir"`     //风向
+	WindLevel   string `json:"windLevel"`   //风级
+	WindSpeed   string `json:"windSpeed"`   //风速
+}
+
+func (this *TodayCondition) String() string {
+	return fmt.Sprintf("Condtion:%s; ConditionId:%s; Humidity:%s; icon:%s; Pressure:%s;RealFeel:%s; SunRise:%s; SunSet:%s; Temp:%s; Tips:%s; Updatetime:%s; Uvi:%s; WindDir:%s;windLevel:%s;WindSpeed:%s",
+		this.Condition, this.ConditionId, this.Humidity, this.Icon, this.Pressure, this.RealFeel, this.SunRise, this.SunSet, this.Temp, this.Tips, this.Updatetime, this.Uvi,
+		this.WindDir, this.WindLevel, this.WindSpeed)
+}
+
+//天气实况
 type TodayWeather struct {
-	City        CityInfo `json:"city"`        //城市信息
-	Condition   string   `json:"condition"`   //天气阴晴
-	ConditionId string   `json:"conditionId"` //实时天气 id
-	Humidity    string   `json:"humidity"`    //湿度
-	Icon        string   `json:"icon"`        //图标
-	Pressure    string   `json:"pressure"`    //气压
-	RealFeel    string   `json:"realFeel"`    //体感温度
-	SunRise     string   `json:"sunRise"`     //日出时间
-	SunSet      string   `json:"sunSet"`      //日落时间
-	Temp        string   `json:"temp"`        //温度
-	Tips        string   `json:"tips"`        //提示
-	Updatetime  string   `json:"updatetime"`  //更新时间
-	Uvi         string   `json:"uvi"`         //紫外线强度
-	WindDir     string   `json:"windDir"`     //风向
-	WindLevel   string   `json:"windLevel"`   //风级
-	WindSpeed   string   `json:"windSpeed"`   //风速
+	City      CityInfo       `json:"city"`      //城市信息
+	Condition TodayCondition `json:"condition"` //天气信息
 }
 
 func (this *TodayWeather) String() string {
-	return fmt.Sprintf("city:{%s}; Condtion:%s; ConditionId:%s; Humidity:%s; icon:%s; Pressure:%s;RealFeel:%s; SunRise:%s; SunSet:%s; Updatetime:%s; Uvi:%s; WindDir:%s;windLevel:%s;WindSpeed:%s",
-		this.City.String(), this.Condition, this.ConditionId, this.Humidity, this.Icon, this.Pressure, this.RealFeel, this.SunRise, this.SunSet, this.Updatetime, this.Uvi,
-		this.WindDir, this.WindLevel, this.WindSpeed)
+	return fmt.Sprintf("City:{%s};Condition:{%s}", this.City.String(), this.Condition.String())
 }
 
 //空气质量
@@ -101,6 +110,7 @@ func (this CondtionWeather) String() string {
 
 //向客户端返回今天天气简要
 type TodayWeatherBrief struct {
+	Title     string `json:"title`      //标题
 	Date      string `json:"date"`      //日期
 	Humidity  string `json:"humidity"`  //湿度
 	Temp      string `json:"temp"`      //温度
@@ -182,13 +192,13 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 	//获取预警
 	//更新天气简要
 	Today := fmt.Sprint(time.Now().Year(), "-", time.Now().Month(), "-", time.Now().Day())
-	this.mWeatherBuff.mTodayBrief.Date = this.mWeatherBuff.mTodayWeather.Updatetime
-	this.mWeatherBuff.mTodayBrief.Humidity = this.mWeatherBuff.mTodayWeather.Humidity
-	this.mWeatherBuff.mTodayBrief.Temp = this.mWeatherBuff.mTodayWeather.Temp
-	this.mWeatherBuff.mTodayBrief.WindLevel = this.mWeatherBuff.mTodayWeather.WindLevel
-	this.mWeatherBuff.mTodayBrief.Icon = this.mWeatherBuff.mTodayWeather.Icon
-	this.mWeatherBuff.mTodayBrief.Tips = this.mWeatherBuff.mTodayWeather.Tips
-	this.mWeatherBuff.mTodayBrief.Uvi = this.mWeatherBuff.mTodayWeather.Uvi
+	this.mWeatherBuff.mTodayBrief.Date = this.mWeatherBuff.mTodayWeather.Condition.Updatetime
+	this.mWeatherBuff.mTodayBrief.Humidity = this.mWeatherBuff.mTodayWeather.Condition.Humidity
+	this.mWeatherBuff.mTodayBrief.Temp = this.mWeatherBuff.mTodayWeather.Condition.Temp
+	this.mWeatherBuff.mTodayBrief.WindLevel = this.mWeatherBuff.mTodayWeather.Condition.WindLevel
+	this.mWeatherBuff.mTodayBrief.Icon = this.mWeatherBuff.mTodayWeather.Condition.Icon
+	this.mWeatherBuff.mTodayBrief.Tips = this.mWeatherBuff.mTodayWeather.Condition.Tips
+	this.mWeatherBuff.mTodayBrief.Uvi = this.mWeatherBuff.mTodayWeather.Condition.Uvi
 	this.mWeatherBuff.mTodayBrief.Value = this.mWeatherBuff.mTodayAQI.Value
 	this.mWeatherBuff.mTodayBrief.Limit = this.mWeatherBuff.mLimitCar[Today].Prompt
 
@@ -199,7 +209,7 @@ func (this *WeatherCrawler) UpdateWeatherBuff(cityId int) error {
 func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 	Common.DEBUG("Update Condition city id:", cityId)
 	//设置请求参数
-	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["token"])
+	query := fmt.Sprintf("cityId=%v&token=%v", cityId, this.mCrawlerConf["ConditionToken"])
 	req, err := http.NewRequest("POST", this.mCrawlerConf["ConditionURL"], bytes.NewBuffer([]byte(query)))
 	if err != nil {
 		Common.ERROR("New Request Failed, Reason:", err)
@@ -222,7 +232,6 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 	defer resp.Body.Close()
 
 	var RetData CondtionWeather
-	Common.DEBUG("The Befor RetData:", RetData)
 	//分解返回信息
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -242,7 +251,6 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 		case 0:
 			//成功
 			//更新缓存
-			Common.DEBUG("Ret Data:", RetData)
 			this.mWeatherBuff.mTodayWeather = RetData.Data
 		case 1:
 			Common.ERROR("Error is the Token invalid.code:", RetData.Code, "; msg:", RetData.Msg)
@@ -261,4 +269,8 @@ func (this *WeatherCrawler) updateConditionWeather(cityId int) error {
 	}
 
 	return nil
+}
+
+//更新空气情况
+func (this *WeatherCrawler) updateAQI(cityId int) error {
 }

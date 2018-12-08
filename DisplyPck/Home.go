@@ -19,6 +19,7 @@ func DisplyIndex(w http.ResponseWriter, req *http.Request) {
 	if TodayEarly != nil {
 		Common.DEBUG("Early Weather")
 	}
+	TodayWeather.Title = "Today Weather"
 	tmpl := template.Must(template.ParseFiles("./tmpl/IndexTemplate.html"))
 	tmpl.Execute(w, TodayWeather)
 }
